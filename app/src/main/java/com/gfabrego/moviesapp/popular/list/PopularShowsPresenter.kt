@@ -19,26 +19,40 @@ internal class PopularShowsPresenter(
     private val disposables = CompositeDisposable()
 
     internal fun attachView() {
-        val firstPageLoad = view
+        val firstPageLoadIntent: Observable<PopularShowsViewState.ListState.PartialState> = view
             .loadFirstPageIntent()
             .flatMap { getPopularShows.build(GetPopularShows.Params(buildInitialPage())) }
             .map { response ->
-                PopularShowsViewState(
-                    PopularShowsViewState.ListState.DisplayingShows(response.shows, response.nextPage)
-                )
+                PopularShowsViewState.ListState.PartialState.InitialShowsLoaded(response.shows, response.nextPage)
+                    as PopularShowsViewState.ListState.PartialState
             }
             .onErrorResumeNext { throwable: Throwable ->
-                Observable.just(
-                    PopularShowsViewState(PopularShowsViewState.ListState.Error(throwable))
-                )
+                Observable.just(PopularShowsViewState.ListState.PartialState.ErrorLoadingInitial(throwable))
             }
-            .startWith(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
+
+        val state = firstPageLoadIntent
+            .scan(
+                PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows)
+            ) { oldState, partialState -> reduceNewState(oldState, partialState) }
 
         disposables.add(
-            firstPageLoad
+            state
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe { viewState -> renderViewState(viewState) })
+    }
+
+    private fun reduceNewState(
+        oldState: PopularShowsViewState,
+        partialState: PopularShowsViewState.ListState.PartialState
+    ): PopularShowsViewState = when (partialState) {
+        is PopularShowsViewState.ListState.PartialState.ErrorLoadingInitial ->
+            PopularShowsViewState(PopularShowsViewState.ListState.Error(partialState.throwable))
+        is PopularShowsViewState.ListState.PartialState.InitialShowsLoaded ->
+            PopularShowsViewState(
+                PopularShowsViewState.ListState.DisplayingShows(partialState.showsList, partialState.nextPage)
+            )
+        else -> TODO()
     }
 
     private fun renderViewState(viewState: PopularShowsViewState) =
@@ -47,7 +61,6 @@ internal class PopularShowsPresenter(
             PopularShowsViewState.ListState.NoResults -> renderNoResultsState()
             is PopularShowsViewState.ListState.Error -> renderErrorState()
             is PopularShowsViewState.ListState.DisplayingShows -> renderDisplayShowsState(viewState.listState)
-            is PopularShowsViewState.ListState.LoadingMoreShows -> TODO()
         }
 
     private fun renderNoResultsState() {

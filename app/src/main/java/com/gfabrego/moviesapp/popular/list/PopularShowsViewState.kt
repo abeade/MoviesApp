@@ -9,8 +9,14 @@ internal class PopularShowsViewState(val listState: ListState) {
 
         object LoadingShows: ListState()
         data class DisplayingShows(val showsList: List<Show>, val nextPage: PageRequest?): ListState()
-        data class LoadingMoreShows(val showsList: List<Show>, val nextPage: PageRequest?): ListState()
         object NoResults: ListState()
         data class Error(val throwable: Throwable): ListState()
+
+        internal sealed class PartialState {
+
+            data class ErrorLoadingInitial(val throwable: Throwable): PartialState()
+            data class InitialShowsLoaded(val showsList: List<Show>, val nextPage: PageRequest?): PartialState()
+            data class MoreShowsLoaded(val showsList: List<Show>, val nextPage: PageRequest?): PartialState()
+        }
     }
 }

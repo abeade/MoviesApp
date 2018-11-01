@@ -7,6 +7,8 @@ internal interface PopularShowsView {
 
     // region INTENTS
     fun loadFirstPageIntent(): Observable<Unit>
+
+    fun loadMorePagesIntent(): Observable<Unit>
     // endregion
 
     // region VIEW RENDERING

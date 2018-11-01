@@ -3,6 +3,7 @@ package com.gfabrego.moviesapp.popular.list
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.gfabrego.moviesapp.BuildConfig
 import com.gfabrego.moviesapp.R
 import com.gfabrego.moviesapp.domaincore.Interactor
@@ -15,6 +16,7 @@ import com.gfabrego.moviesapp.popular.domain.model.PageRequestFactory
 import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import com.gfabrego.moviesapp.popular.domain.repository.PopularShowsRepository
+import com.jakewharton.rxbinding3.recyclerview.scrollEvents
 import io.reactivex.Observable
 import kotlinx.android.synthetic.main.activity_popular_shows.*
 import okhttp3.OkHttpClient
@@ -26,19 +28,21 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
 
     private val presenter = injectPresenter()
+    private lateinit var layoutManager: StaggeredGridLayoutManager
     private lateinit var adapter: PopularShowsAdapter
 
     // region LIFECYCLE
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_popular_shows)
-        createAdapter()
+        initializeRecyclerView()
         presenter.attachView()
     }
 
-    private fun createAdapter() {
+    private fun initializeRecyclerView() {
         adapter = PopularShowsAdapter()
         rvShowsList.adapter = adapter
+        layoutManager = rvShowsList.layoutManager as StaggeredGridLayoutManager
     }
 
     override fun onDestroy() {
@@ -49,6 +53,17 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
 
     // region INTENTS
     override fun loadFirstPageIntent(): Observable<Unit> = Observable.fromCallable { Unit }
+
+    override fun loadMorePagesIntent(): Observable<Unit> = rvShowsList
+        .scrollEvents()
+        .filter { !srPullToRefresh.isRefreshing }
+        .filter { isLastItemVisible() }
+        .map { Unit }
+
+    // TODO: this is not the proper implementation, but works for now
+    private fun isLastItemVisible() =
+        layoutManager.findLastCompletelyVisibleItemPositions(null)[0] == adapter.itemCount - 1
+
     // endregion
 
     // region VIEW RENDERING
