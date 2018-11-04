@@ -3,8 +3,11 @@ package com.gfabrego.moviesapp.popular.list
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.gfabrego.moviesapp.BuildConfig
 import com.gfabrego.moviesapp.R
+import com.gfabrego.moviesapp.architecture.RxLifecycleObserver
 import com.gfabrego.moviesapp.domaincore.Interactor
 import com.gfabrego.moviesapp.popular.data.network.PopularShowsApiDataSource
 import com.gfabrego.moviesapp.popular.data.network.PopularShowsApiMapper
@@ -15,7 +18,10 @@ import com.gfabrego.moviesapp.popular.domain.model.PageRequestFactory
 import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import com.gfabrego.moviesapp.popular.domain.repository.PopularShowsRepository
+import com.jakewharton.rxbinding3.recyclerview.scrollEvents
+import com.jakewharton.rxbinding3.recyclerview.scrollStateChanges
 import io.reactivex.Observable
+import io.reactivex.subjects.PublishSubject
 import kotlinx.android.synthetic.main.activity_popular_shows.*
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -25,12 +31,16 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 
 class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
 
+    private val lifecycleObserver = RxLifecycleObserver()
     private val presenter = injectPresenter()
     private lateinit var adapter: PopularShowsAdapter
+
+    private val nextPageSubject: PublishSubject<PopularShowsIntent.LoadNextPageIntent> = PublishSubject.create()
 
     // region LIFECYCLE
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycle.addObserver(lifecycleObserver)
         setContentView(R.layout.activity_popular_shows)
         createAdapter()
         presenter.attachView()
@@ -41,7 +51,7 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
         rvShowsList.adapter = adapter
         rvShowsList.addOnScrollListener(object : RecyclerViewEndlessOnScrollListener() {
             override fun onLoadMore() {
-                Toast.makeText(this@PopularShowsActivity, getString(R.string.app_name), Toast.LENGTH_LONG).show()
+                nextPageSubject.onNext(PopularShowsIntent.LoadNextPageIntent)
             }
         })
     }
@@ -53,7 +63,16 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     // endregion
 
     // region INTENTS
-    override fun loadFirstPageIntent(): Observable<Unit> = Observable.fromCallable { Unit }
+    override fun loadFirstPageIntent(): Observable<PopularShowsIntent.LoadFirstPageIntent> = Observable.fromCallable { PopularShowsIntent.LoadFirstPageIntent }
+
+    override fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent> = nextPageSubject.hide()
+
+//    override fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent> {
+//        return rvShowsList.scrollStateChanges()
+//            .filter { event -> event == RecyclerView.SCROLL_STATE_IDLE }
+//            .filter { event -> (rvShowsList.layoutManager as StaggeredGridLayoutManager).findLastVisibleItemPositions(null).last() >= rvShowsList.layoutManager!!.itemCount - 5 }
+//            .map { integer -> PopularShowsIntent.LoadNextPageIntent }
+//    }
     // endregion
 
     // region VIEW RENDERING
@@ -81,7 +100,7 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     // region "INJECTION"
     // TODO: replace with real injection
     private fun injectPresenter(): PopularShowsPresenter =
-        PopularShowsPresenter(this, provideGetPopularShows(), PageRequestFactory())
+        PopularShowsPresenter(this, provideGetPopularShows(), PageRequestFactory(), lifecycleObserver)
 
     private fun provideGetPopularShows(): Interactor<GetPopularShows.Params, PopularShowsResponse> =
         GetPopularShows(providePopularShowsRepository())

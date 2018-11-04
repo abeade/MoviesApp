@@ -22,10 +22,10 @@ internal data class PopularShowsApiResponse(
         @Json(name = "overview")
         val overview: String,
         @Json(name = "poster_path")
-        val posterPath: String,
+        val posterPath: String?,
         @Json(name = "vote_average")
         val voteAverage: Float,
         @Json(name = "backdrop_path")
-        val backdropPath: String
+        val backdropPath: String?
     )
 }

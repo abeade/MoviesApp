@@ -19,7 +19,7 @@ internal class PopularShowsApiMapper {
                 Show(
                     id = id.toString(),
                     title = name,
-                    poster = URL("$BASE_POSTER_IMAGE_URL$posterPath")
+                    poster = URL(posterPath?.let { "$BASE_POSTER_IMAGE_URL$posterPath" } ?: NO_IMAGE_URL)
                 )
             }
         } catch (throwable: Throwable) {
@@ -29,12 +29,13 @@ internal class PopularShowsApiMapper {
 
     private fun mapNextPage(response: PopularShowsApiResponse): PageRequest? =
         when {
-            response.totalPages < response.page -> PageRequest.Paged(response.page + 1)
+            response.totalPages > response.page -> PageRequest.Paged(response.page + 1)
             else -> null
         }
 
     private companion object {
         // TODO: configurations might be retrieved from the configuration API
         private const val BASE_POSTER_IMAGE_URL = "https://image.tmdb.org/t/p/w154"
+        private const val NO_IMAGE_URL = "https://image.tmdb.org/t/p/w154/wwemzKWzjKYJFfCeiB57q3r4Bcm.png"
     }
 }
