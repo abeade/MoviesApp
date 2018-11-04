@@ -35,7 +35,7 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     private val presenter = injectPresenter()
     private lateinit var adapter: PopularShowsAdapter
 
-    private val nextPageSubject: PublishSubject<PopularShowsIntent.LoadNextPageIntent> = PublishSubject.create()
+    private val nextPageSubject: PublishSubject<PopularShowsIntent> = PublishSubject.create()
 
     // region LIFECYCLE
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,9 +63,9 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     // endregion
 
     // region INTENTS
-    override fun loadFirstPageIntent(): Observable<PopularShowsIntent.LoadFirstPageIntent> = Observable.fromCallable { PopularShowsIntent.LoadFirstPageIntent }
+    override fun loadFirstPageIntent(): Observable<PopularShowsIntent> = Observable.fromCallable { PopularShowsIntent.LoadFirstPageIntent }
 
-    override fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent> = nextPageSubject.hide()
+    override fun loadNextPageIntent(): Observable<PopularShowsIntent> = nextPageSubject.hide()
 
 //    override fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent> {
 //        return rvShowsList.scrollStateChanges()

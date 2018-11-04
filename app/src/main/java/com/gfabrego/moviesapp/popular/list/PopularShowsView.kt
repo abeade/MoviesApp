@@ -6,9 +6,9 @@ import io.reactivex.Observable
 internal interface PopularShowsView {
 
     // region INTENTS
-    fun loadFirstPageIntent(): Observable<PopularShowsIntent.LoadFirstPageIntent>
+    fun loadFirstPageIntent(): Observable<PopularShowsIntent>
 
-    fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent>
+    fun loadNextPageIntent(): Observable<PopularShowsIntent>
     // endregion
 
     // region VIEW RENDERING
