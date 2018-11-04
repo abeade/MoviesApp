@@ -47,7 +47,7 @@ internal class PopularShowsPresenter(
 
         val nextPageLoad = view
             .loadNextPageIntent()
-            .switchMap { stateSubject }
+            .flatMap { stateSubject.take(1) }
             .filter { it.listState is PopularShowsViewState.ListState.DisplayingShows && it.listState.nextPage != null }
             .distinctUntilChanged()
             .observeOn(Schedulers.io())
