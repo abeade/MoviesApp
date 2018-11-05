@@ -9,6 +9,7 @@ import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import com.gfabrego.moviesapp.utils.any
 import io.reactivex.Observable
+import io.reactivex.observers.TestObserver
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import org.junit.Test
@@ -41,37 +42,49 @@ class PopularShowsPresenterTest {
 
     @Test
     fun `initial load should emit DisplayingShows state`() {
-        val subject: BehaviorSubject<PopularShowsViewState> =
+        val stateSubject: BehaviorSubject<PopularShowsViewState> =
             BehaviorSubject.createDefault(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
-        val presenter = buildPresenter(subject)
+        val stateObserver = TestObserver<PopularShowsViewState>()
+        stateSubject.subscribe(stateObserver)
+        val presenter = buildPresenter(stateSubject)
         given(view.loadFirstPageIntent()).willReturn(Observable.fromCallable { PopularShowsIntent.LoadFirstPageIntent })
         given(view.loadNextPageIntent()).willReturn(Observable.empty())
         given(getPopularShows.build(any())).willReturn(Observable.just(PopularShowsResponse(LIST_OF_SHOWS, PageRequest.Paged(1))))
 
         presenter.attachView()
 
+        verify(view, Mockito.times(1)).showLoading()
         verify(view, Mockito.times(1)).hideLoading()
-        assertTrue(subject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
-        assertTrue((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
-        assertEquals(((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 1)
-        assertEquals((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS)
+        verify(view, Mockito.times(1)).showShows(LIST_OF_SHOWS)
+        assertTrue(stateSubject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
+        assertTrue((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
+        assertEquals(((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 1)
+        assertEquals((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS)
+        stateObserver.assertValueCount(2)
     }
 
     @Test
     fun `load more should emit DisplayingShows state with page increased and list appended`() {
-        val subject: BehaviorSubject<PopularShowsViewState> =
+        val stateSubject: BehaviorSubject<PopularShowsViewState> =
             BehaviorSubject.createDefault(PopularShowsViewState(PopularShowsViewState.ListState.DisplayingShows(LIST_OF_SHOWS, PageRequest.Paged(1))))
-        val presenter = buildPresenter(subject)
+        val stateObserver = TestObserver<PopularShowsViewState>()
+        stateSubject.subscribe(stateObserver)
+        val presenter = buildPresenter(stateSubject)
         given(view.loadFirstPageIntent()).willReturn(Observable.empty())
         given(view.loadNextPageIntent()).willReturn(Observable.fromCallable { PopularShowsIntent.LoadNextPageIntent })
         given(getPopularShows.build(any())).willReturn(Observable.just(PopularShowsResponse(LIST_OF_SHOWS, PageRequest.Paged(2))))
 
+
         presenter.attachView()
 
-        assertTrue(subject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
-        assertTrue((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
-        assertEquals(((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 2)
-        assertEquals((subject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS.plus(LIST_OF_SHOWS))
+        verify(view, Mockito.times(1)).showLoading()
+        verify(view, Mockito.times(1)).hideLoading()
+        verify(view, Mockito.times(1)).showShows(LIST_OF_SHOWS.plus(LIST_OF_SHOWS))
+        assertTrue(stateSubject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
+        assertTrue((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
+        assertEquals(((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 2)
+        assertEquals((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS.plus(LIST_OF_SHOWS))
+        stateObserver.assertValueCount(2)
     }
 
     private fun buildPresenter(
