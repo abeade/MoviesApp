@@ -3,8 +3,6 @@ package com.gfabrego.moviesapp.popular.list
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.gfabrego.moviesapp.BuildConfig
 import com.gfabrego.moviesapp.R
 import com.gfabrego.moviesapp.architecture.RxLifecycleObserver
@@ -18,8 +16,6 @@ import com.gfabrego.moviesapp.popular.domain.model.PageRequestFactory
 import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import com.gfabrego.moviesapp.popular.domain.repository.PopularShowsRepository
-import com.jakewharton.rxbinding3.recyclerview.scrollEvents
-import com.jakewharton.rxbinding3.recyclerview.scrollStateChanges
 import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import kotlinx.android.synthetic.main.activity_popular_shows.*
@@ -100,7 +96,12 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     // region "INJECTION"
     // TODO: replace with real injection
     private fun injectPresenter(): PopularShowsPresenter =
-        PopularShowsPresenter(this, provideGetPopularShows(), PageRequestFactory(), lifecycleObserver)
+        PopularShowsPresenter(
+            this,
+            provideGetPopularShows(),
+            PageRequestFactory(),
+            lifecycleObserver.lifecycleSubject
+        )
 
     private fun provideGetPopularShows(): Interactor<GetPopularShows.Params, PopularShowsResponse> =
         GetPopularShows(providePopularShowsRepository())

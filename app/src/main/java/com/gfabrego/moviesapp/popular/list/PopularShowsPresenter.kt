@@ -1,7 +1,6 @@
 package com.gfabrego.moviesapp.popular.list
 
-import android.util.Log
-import com.gfabrego.moviesapp.architecture.RxLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import com.gfabrego.moviesapp.domaincore.Interactor
 import com.gfabrego.moviesapp.popular.domain.interactor.GetPopularShows
 import com.gfabrego.moviesapp.popular.domain.model.PageRequest
@@ -9,6 +8,7 @@ import com.gfabrego.moviesapp.popular.domain.model.PageRequestFactory
 import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import io.reactivex.Observable
+import io.reactivex.Scheduler
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -18,11 +18,12 @@ internal class PopularShowsPresenter(
     private val view: PopularShowsView,
     private val getPopularShows: Interactor<GetPopularShows.Params, PopularShowsResponse>,
     private val pageRequestFactory: PageRequestFactory,
-    private val lifecycleObserver: RxLifecycleObserver
-) {
-
+    private val lifecycleObserver: BehaviorSubject<Lifecycle.Event>,
     private val stateSubject: BehaviorSubject<PopularShowsViewState> =
-        BehaviorSubject.createDefault(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
+        BehaviorSubject.createDefault(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows)),
+    private val observeScheduler: Scheduler = AndroidSchedulers.mainThread(),
+    private val subscribeScheduler: Scheduler = Schedulers.io()
+) {
 
     private val disposables = CompositeDisposable()
 
@@ -30,16 +31,11 @@ internal class PopularShowsPresenter(
         val firstPageLoad =
             Observable.merge(view.loadFirstPageIntent(), view.loadNextPageIntent())
                 .flatMap { intentToStateObservable(it) }
-                .onErrorResumeNext { throwable: Throwable ->
-                    Log.e(javaClass.simpleName, "Error loading shows", throwable)
-                    Observable.just(
-                        PopularShowsViewState(PopularShowsViewState.ListState.Error(throwable))
-                    )
+                .onErrorReturn { throwable: Throwable ->
+                    PopularShowsViewState(PopularShowsViewState.ListState.Error(throwable))
                 }
-                .startWith(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
-                .doOnNext { stateSubject.onNext(it) }
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.io())
+                .observeOn(observeScheduler)
+                .subscribeOn(subscribeScheduler)
 
         disposables.add(
             firstPageLoad.subscribe { viewState -> renderViewState(viewState) }
@@ -55,9 +51,7 @@ internal class PopularShowsPresenter(
 
     private fun nextPageObservable(): Observable<PopularShowsViewState> {
         return stateSubject.take(1)
-            .observeOn(Schedulers.io())
-            .flatMap { stateSubject.take(1) }
-            .distinctUntilChanged()
+            .observeOn(subscribeScheduler)
             .filter { it.listState is PopularShowsViewState.ListState.DisplayingShows && it.listState.nextPage != null }
             .map { it.listState as PopularShowsViewState.ListState.DisplayingShows }
             .switchMap {
@@ -71,18 +65,19 @@ internal class PopularShowsPresenter(
                         )
                     }
             }
+            .doOnNext { stateSubject.onNext(it) }
+            .startWith(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
     }
 
     private fun fistPageObservable(): Observable<PopularShowsViewState> {
-        return getPopularShows.build(
-            GetPopularShows.Params(
-                buildInitialPage()
-            )
-        ).map { response ->
-            PopularShowsViewState(
-                PopularShowsViewState.ListState.DisplayingShows(response.shows, response.nextPage)
-            )
-        }
+        return getPopularShows.build(GetPopularShows.Params(buildInitialPage()))
+            .map { response ->
+                PopularShowsViewState(
+                    PopularShowsViewState.ListState.DisplayingShows(response.shows, response.nextPage)
+                )
+            }
+            .doOnNext { stateSubject.onNext(it) }
+            .startWith(PopularShowsViewState(PopularShowsViewState.ListState.LoadingShows))
     }
 
     private fun renderViewState(viewState: PopularShowsViewState) =
