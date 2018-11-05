@@ -20,8 +20,6 @@ import org.mockito.Mockito
 import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnitRunner
 import java.net.URL
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @RunWith(MockitoJUnitRunner::class)
 class PopularShowsPresenterTest {
@@ -56,11 +54,9 @@ class PopularShowsPresenterTest {
         verify(view, Mockito.times(1)).showLoading()
         verify(view, Mockito.times(1)).hideLoading()
         verify(view, Mockito.times(1)).showShows(LIST_OF_SHOWS)
-        assertTrue(stateSubject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
-        assertTrue((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
-        assertEquals(((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 1)
-        assertEquals((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS)
         stateObserver.assertValueCount(2)
+        stateObserver.assertValueAt(0) { it.listState == PopularShowsViewState.ListState.LoadingShows }
+        stateObserver.assertValueAt(1) { it.listState == PopularShowsViewState.ListState.DisplayingShows(LIST_OF_SHOWS, PageRequest.Paged(1)) }
     }
 
     @Test
@@ -80,11 +76,9 @@ class PopularShowsPresenterTest {
         verify(view, Mockito.times(1)).showLoading()
         verify(view, Mockito.times(1)).hideLoading()
         verify(view, Mockito.times(1)).showShows(LIST_OF_SHOWS.plus(LIST_OF_SHOWS))
-        assertTrue(stateSubject.value?.listState is PopularShowsViewState.ListState.DisplayingShows)
-        assertTrue((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage is PageRequest.Paged)
-        assertEquals(((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).nextPage as PageRequest.Paged).page, 2)
-        assertEquals((stateSubject.value?.listState as PopularShowsViewState.ListState.DisplayingShows).showsList, LIST_OF_SHOWS.plus(LIST_OF_SHOWS))
         stateObserver.assertValueCount(2)
+        stateObserver.assertValueAt(0) { it.listState == PopularShowsViewState.ListState.DisplayingShows(LIST_OF_SHOWS, PageRequest.Paged(1)) }
+        stateObserver.assertValueAt(1) { it.listState == PopularShowsViewState.ListState.DisplayingShows(LIST_OF_SHOWS.plus(LIST_OF_SHOWS), PageRequest.Paged(2)) }
     }
 
     private fun buildPresenter(
