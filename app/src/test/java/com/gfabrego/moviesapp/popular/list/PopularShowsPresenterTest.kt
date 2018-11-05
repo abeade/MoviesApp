@@ -26,7 +26,8 @@ import kotlin.test.assertTrue
 class PopularShowsPresenterTest {
 
     private companion object {
-        private val LIST_OF_SHOWS = listOf(Show("1", "TITLE1", URL("http://test1.com")), Show("2", "TITLE2", URL("http://test2.com")))
+        private val LIST_OF_SHOWS =
+            listOf(Show("1", "TITLE1", URL("http://test1.com")), Show("2", "TITLE2", URL("http://test2.com")))
     }
 
     @Mock
