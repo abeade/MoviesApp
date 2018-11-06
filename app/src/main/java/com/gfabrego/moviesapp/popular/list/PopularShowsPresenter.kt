@@ -37,6 +37,13 @@ internal class PopularShowsPresenter(
                 .observeOn(observeScheduler)
                 .subscribeOn(subscribeScheduler)
 
+//        fun getObservable() =
+//            lifecycleObserver.lifecycleSubject
+//                .filter { it == Lifecycle.Event.ON_CREATE }
+//                .switchMap { firstPageLoad }
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .takeUntil(lifecycleObserver.lifecycleSubject.filter { it == Lifecycle.Event.ON_DESTROY })
+
         disposables.add(
             firstPageLoad.subscribe { viewState -> renderViewState(viewState) }
         )
