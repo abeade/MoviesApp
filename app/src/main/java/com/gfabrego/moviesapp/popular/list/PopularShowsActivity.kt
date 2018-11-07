@@ -3,6 +3,7 @@ package com.gfabrego.moviesapp.popular.list
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.gfabrego.moviesapp.BuildConfig
 import com.gfabrego.moviesapp.R
 import com.gfabrego.moviesapp.architecture.RxLifecycleObserver
@@ -16,7 +17,10 @@ import com.gfabrego.moviesapp.popular.domain.model.PageRequestFactory
 import com.gfabrego.moviesapp.popular.domain.model.PopularShowsResponse
 import com.gfabrego.moviesapp.popular.domain.model.Show
 import com.gfabrego.moviesapp.popular.domain.repository.PopularShowsRepository
+import com.jakewharton.rxbinding3.recyclerview.scrollEvents
 import io.reactivex.Observable
+import io.reactivex.disposables.Disposable
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import kotlinx.android.synthetic.main.activity_popular_shows.*
 import okhttp3.OkHttpClient
@@ -32,6 +36,9 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
     private lateinit var adapter: PopularShowsAdapter
 
     private val nextPageSubject: PublishSubject<PopularShowsIntent> = PublishSubject.create()
+    private val firstPageSubject: BehaviorSubject<PopularShowsIntent> = BehaviorSubject.create()
+
+    private lateinit var scrollSubscription: Disposable
 
     // region LIFECYCLE
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,35 +47,30 @@ class PopularShowsActivity : AppCompatActivity(), PopularShowsView {
         setContentView(R.layout.activity_popular_shows)
         createAdapter()
         presenter.attachView()
+        srPullToRefresh.setOnRefreshListener { firstPageSubject.onNext(PopularShowsIntent.LoadFirstPageIntent) }
+        firstPageSubject.onNext(PopularShowsIntent.LoadFirstPageIntent)
     }
 
     private fun createAdapter() {
         adapter = PopularShowsAdapter()
         rvShowsList.adapter = adapter
-        rvShowsList.addOnScrollListener(object : RecyclerViewEndlessOnScrollListener() {
-            override fun onLoadMore() {
-                nextPageSubject.onNext(PopularShowsIntent.LoadNextPageIntent)
-            }
-        })
+        scrollSubscription = rvShowsList.scrollEvents()
+            .filter { !srPullToRefresh.isRefreshing }
+            .filter { (rvShowsList.layoutManager as StaggeredGridLayoutManager).findLastVisibleItemPositions(null).last() >= adapter.itemCount - 5 }
+            .subscribe { nextPageSubject.onNext(PopularShowsIntent.LoadNextPageIntent) }
     }
 
     override fun onDestroy() {
+        scrollSubscription.dispose()
         presenter.detachView()
         super.onDestroy()
     }
     // endregion
 
     // region INTENTS
-    override fun loadFirstPageIntent(): Observable<PopularShowsIntent> = Observable.fromCallable { PopularShowsIntent.LoadFirstPageIntent }
+    override fun loadFirstPageIntent(): Observable<PopularShowsIntent> = firstPageSubject.hide()
 
     override fun loadNextPageIntent(): Observable<PopularShowsIntent> = nextPageSubject.hide()
-
-//    override fun loadNextPageIntent(): Observable<PopularShowsIntent.LoadNextPageIntent> {
-//        return rvShowsList.scrollStateChanges()
-//            .filter { event -> event == RecyclerView.SCROLL_STATE_IDLE }
-//            .filter { event -> (rvShowsList.layoutManager as StaggeredGridLayoutManager).findLastVisibleItemPositions(null).last() >= rvShowsList.layoutManager!!.itemCount - 5 }
-//            .map { integer -> PopularShowsIntent.LoadNextPageIntent }
-//    }
     // endregion
 
     // region VIEW RENDERING

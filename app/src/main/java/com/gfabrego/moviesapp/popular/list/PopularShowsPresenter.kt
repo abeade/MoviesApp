@@ -13,6 +13,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
+import timber.log.Timber
 
 internal class PopularShowsPresenter(
     private val view: PopularShowsView,
@@ -30,8 +31,10 @@ internal class PopularShowsPresenter(
     internal fun attachView() {
         val firstPageLoad =
             Observable.merge(view.loadFirstPageIntent(), view.loadNextPageIntent())
+                .observeOn(subscribeScheduler)
                 .flatMap { intentToStateObservable(it) }
                 .onErrorReturn { throwable: Throwable ->
+                    Timber.e(throwable, "Error loading data")
                     PopularShowsViewState(PopularShowsViewState.ListState.Error(throwable))
                 }
                 .observeOn(observeScheduler)
@@ -58,10 +61,9 @@ internal class PopularShowsPresenter(
 
     private fun nextPageObservable(): Observable<PopularShowsViewState> {
         return stateSubject.take(1)
-            .observeOn(subscribeScheduler)
             .filter { it.listState is PopularShowsViewState.ListState.DisplayingShows && it.listState.nextPage != null }
             .map { it.listState as PopularShowsViewState.ListState.DisplayingShows }
-            .switchMap {
+            .flatMap {
                 getPopularShows.build(GetPopularShows.Params(it.nextPage!!))
                     .map { response ->
                         PopularShowsViewState(
